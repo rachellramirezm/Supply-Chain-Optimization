@@ -1,3 +1,4 @@
+--Which routes generate the highest logistics costs?
 WITH orderList_info AS (
 	SELECT
 	    order_id,
@@ -20,7 +21,6 @@ WITH orderList_info AS (
 
 freightRate_info AS (
     SELECT
-		freight_rate_id,
         carrier_key,
         origin_port_key,
         destination_port_key,
@@ -45,7 +45,7 @@ join_result_raw AS (
         f.minimum_cost,
         ROW_NUMBER() OVER(
             PARTITION BY o.order_id
-            ORDER BY f.min_weight DESC, f.freight_rate_id ASC
+            ORDER BY f.min_weight DESC
         ) AS rn
     FROM orderList_info o
     LEFT JOIN freightRate_info f
@@ -60,9 +60,9 @@ join_result AS (
     SELECT
         order_id,
         plant_id,
-        carrier_id,
 		origin_port_id,
 		destination_port_id,
+        carrier_id,
         unit_quantity,
         total_weight,
         rate,
@@ -88,7 +88,7 @@ warehouse_costs AS (
 order_costs AS (
     SELECT
         j.order_id,
-		j.carrier_id,
+		j.plant_id,
 		j.origin_port_id,
 		j.destination_port_id,
         j.transport_cost,
@@ -100,12 +100,13 @@ order_costs AS (
 )
 
 SELECT
-	carrier_id,
 	origin_port_id,
 	destination_port_id,
+    SUM(transport_cost) AS total_transport_cost,
+    SUM(warehouse_cost) AS total_warehouse_cost,
     SUM(total_order_cost) AS total_logistics_cost
 FROM order_costs
-GROUP BY carrier_id, origin_port_id, destination_port_id
-ORDER BY origin_port_id ASC, destination_port_id ASC, total_logistics_cost DESC
+GROUP BY plant_id, origin_port_id, destination_port_id
+ORDER BY total_logistics_cost DESC
 
 
