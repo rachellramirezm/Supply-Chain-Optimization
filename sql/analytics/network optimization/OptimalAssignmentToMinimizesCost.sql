@@ -1,0 +1,94 @@
+WITH orderList_info AS (
+    SELECT
+        order_id,
+        plant_id,
+        carrier_id AS historical_carrier,
+        origin_port_id,
+        destination_port_id,
+        service_level,
+        SUM(unit_quantity) AS unit_quantity,
+        SUM(unit_quantity * weight) AS total_weight
+    FROM modeling.fact_orders
+    GROUP BY
+        order_id,
+        plant_id,
+        carrier_id,
+        origin_port_id,
+        destination_port_id,
+        service_level
+),
+
+freightRate_info AS (
+    SELECT
+        freight_rate_id,
+        carrier_key,
+        origin_port_key,
+        destination_port_key,
+        service_level,
+        min_weight,
+        max_weight,
+        rate,
+        minimum_cost
+    FROM modeling.fact_freight_rates
+),
+
+-- Evaluate ALL possible carriers
+carrier_options AS (
+    SELECT
+        o.order_id,
+        o.plant_id,
+        o.historical_carrier,
+        f.carrier_key AS carrier_id,
+        o.unit_quantity,
+        o.total_weight,
+        GREATEST(
+            o.total_weight * f.rate,
+            COALESCE(f.minimum_cost,0)
+        ) AS transport_cost
+    FROM orderList_info o
+    JOIN freightRate_info f
+        ON o.origin_port_id = f.origin_port_key
+        AND o.destination_port_id = f.destination_port_key
+        AND o.service_level = f.service_level
+        AND o.total_weight BETWEEN f.min_weight AND f.max_weight
+),
+
+warehouse_costs AS (
+    SELECT
+        plant_key,
+        cost_per_unit
+    FROM modeling.dim_plant
+),
+
+total_costs AS (
+    SELECT
+        c.order_id,
+        c.historical_carrier,
+        c.carrier_id,
+        c.transport_cost,
+        c.unit_quantity * w.cost_per_unit AS warehouse_cost,
+        c.transport_cost + (c.unit_quantity * w.cost_per_unit) AS total_order_cost
+    FROM carrier_options c
+    JOIN warehouse_costs w
+        ON c.plant_id = w.plant_key
+),
+
+optimal_assignment AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (
+            PARTITION BY order_id
+            ORDER BY total_order_cost ASC
+        ) AS rn
+    FROM total_costs
+)
+
+SELECT
+    order_id,
+    historical_carrier,
+    carrier_id AS optimal_carrier,
+    transport_cost,
+    warehouse_cost,
+    total_order_cost
+FROM optimal_assignment
+WHERE rn = 1
