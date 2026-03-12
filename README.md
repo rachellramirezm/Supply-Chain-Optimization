@@ -72,9 +72,9 @@ The focus is not only measuring logistics performance, but improving it through 
 ## 🔎 Business Impact
 This analysis demonstrates how data-driven logistics optimization can uncover structural inefficiencies in supply chain networks. By analyzing historical shipping patterns, carrier pricing, and warehouse capacity constraints, the model identifies opportunities to:
 
--Reduce logistics costs by over 60%
--Improve capacity utilization across plants
--Select lower-cost transportation carriers
--Reduce operational bottlenecks in overloaded facilities
--Support data-driven supply chain decisions
+- Reduce logistics costs by over 60%
+- Improve capacity utilization across plants
+- Select lower-cost transportation carriers
+- Reduce operational bottlenecks in overloaded facilities
+- Support data-driven supply chain decisions
 
